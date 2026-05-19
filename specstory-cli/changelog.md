@@ -1,5 +1,11 @@
 # Specstory CLI Changelog
 
+## v1.14.0 2026-05-19
+
+### 📢 Announcements
+
+- The SpecStory CLI now supports [OpenCode](https://opencode.ai) for sessions created from OpenCode CLI. This provides the same support for saving to local markdown files and to the SpecStory Cloud as for [Claude Code](https://claude.ai/docs/api/claude-code), [Cursor CLI](https://cursor.com/docs/cli), [Codex CLI](https://developers.openai.com/codex/cli/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), Factory's [Droid CLI](https://factory.ai/product/cli), and [DeepSeek TUI](https://github.com/Hmbown/DeepSeek-TUI). OpenCode sessions are stored in a SQLite database at `~/.local/share/opencode/opencode.db`.
+
 ## v1.13.0 2026-05-18
 
 ### 📢 Announcements

@@ -115,6 +115,9 @@ const defaultConfigTemplate = `# SpecStory CLI Configuration
 
 # DeepSeek TUI command
 # deepseek_cmd = "deepseek"
+
+# OpenCode command
+# opencode_cmd = "opencode"
 `
 
 // Config represents the complete CLI configuration
@@ -198,6 +201,7 @@ type ProvidersConfig struct {
 	DeepSeekCmd string `toml:"deepseek_cmd"`
 	DroidCmd    string `toml:"droid_cmd"`
 	GeminiCmd   string `toml:"gemini_cmd"`
+	OpenCodeCmd string `toml:"opencode_cmd"`
 }
 
 // CLIOverrides holds CLI flag values that override config file settings.
@@ -727,7 +731,7 @@ func (c *Config) IsLocalTimeZoneEnabled() bool {
 
 // GetProviderCmd returns the custom execution command for a provider, or empty
 // string if none is configured. The providerID should match a registered
-// provider ID (e.g., "claude", "codex", "cursor", "droid", "gemini").
+// provider ID (e.g., "claude", "codex", "cursor", "droid", "gemini", "opencode").
 func (c *Config) GetProviderCmd(providerID string) string {
 	switch strings.ToLower(providerID) {
 	case "claude":
@@ -742,6 +746,8 @@ func (c *Config) GetProviderCmd(providerID string) string {
 		return c.Providers.DroidCmd
 	case "gemini":
 		return c.Providers.GeminiCmd
+	case "opencode":
+		return c.Providers.OpenCodeCmd
 	default:
 		return ""
 	}

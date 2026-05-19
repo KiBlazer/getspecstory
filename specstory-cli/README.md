@@ -31,6 +31,7 @@ The following coding agents are supported in the SpecStory CLI:
 | [Droid CLI](https://factory.ai/product/cli)               | [droidcli](pkg/providers/droidcli/)       | JSONL       | `~/.factory/sessions/`  |
 | [Gemini CLI](https://ai.google.dev/gemini-cli)            | [geminicli](pkg/providers/geminicli/)     | JSON        | `~/.gemini/tmp/`        |
 | [DeepSeek TUI](https://github.com/Hmbown/DeepSeek-TUI)    | [deepseektui](pkg/providers/deepseektui/) | JSON        | `~/.deepseek/sessions/` |
+| [OpenCode](https://opencode.ai)                           | [opencode](pkg/providers/opencode/)       | SQLite      | `~/.local/share/opencode/` |
 
 ### Agent Provider SPI (Service Provider Interface)
 
@@ -201,6 +202,7 @@ The configuration is determined with the following priority (highest priority to
 | `[providers]`     | `deepseek_cmd`    | `"deepseek"`         | DeepSeek TUI command                       |
 | `[providers]`     | `droid_cmd`       | `"droid"`            | Droid CLI command                          |
 | `[providers]`     | `gemini_cmd`      | `"gemini"`           | Gemini CLI command                         |
+| `[providers]`     | `opencode_cmd`    | `"opencode"`         | OpenCode command                           |
 
 \* Telemetry is enabled when an endpoint is configured unless the standard `OTEL_SDK_DISABLED` ENV var is set to `true` or `1`.
 

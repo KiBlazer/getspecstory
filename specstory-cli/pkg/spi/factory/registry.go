@@ -16,6 +16,7 @@ import (
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/deepseektui"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/droidcli"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/geminicli"
+	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/opencode"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/spi"
 )
 
@@ -81,6 +82,10 @@ func (r *Registry) registerAll() {
 	deepseekProvider := deepseektui.NewProvider()
 	r.providers["deepseek"] = deepseekProvider
 	slog.Debug("Registered provider", "id", "deepseek", "name", deepseekProvider.Name())
+
+	opencodeProvider := opencode.NewProvider()
+	r.providers["opencode"] = opencodeProvider
+	slog.Debug("Registered provider", "id", "opencode", "name", opencodeProvider.Name())
 
 	r.initialized = true
 	slog.Info("Provider registry initialized", "count", len(r.providers), "providers", r.ListIDsUnsafe())
