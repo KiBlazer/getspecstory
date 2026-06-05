@@ -1455,6 +1455,7 @@ func main() {
 	versionCmd := cmdpkg.CreateVersionCommand(version)
 	loginCmd := cmdpkg.CreateLoginCommand(&cloudURL)
 	logoutCmd := cmdpkg.CreateLogoutCommand(&cloudURL)
+	updateCmd := cmdpkg.CreateUpdateCommand(version)
 
 	// Set version for the automatic version flag
 	rootCmd.Version = version
@@ -1475,6 +1476,7 @@ func main() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logoutCmd)
+	rootCmd.AddCommand(updateCmd)
 
 	// Global flags available on all commands
 	// Use current variable values as defaults so config file values are preserved

@@ -29,6 +29,7 @@ const (
 	EventCloudSyncComplete      = "ext_cloudsync_complete"       // Tracks cloud sync completion with statistics
 	EventSyncStatsComplete      = "ext_sync_stats_complete"      // Tracks when --only-stats sync completes
 	EventListSessions           = "ext_list_sessions"            // Tracks when users list sessions with the list command
+	EventUpdateCommand          = "ext_update_command"           // Tracks when users run the update command
 )
 
 // Properties is a type alias for event properties to avoid exposing PostHog types
