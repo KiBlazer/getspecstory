@@ -79,7 +79,10 @@ By default, 'watch' is for activity from all registered agent providers. Specify
 		Example: examples,
 		Args:    cobra.MaximumNArgs(1), // Accept 0 or 1 argument (provider ID)
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config.EnsureDefaultProjectConfig()
+			noLocalMetadata, _ := cmd.Flags().GetBool("no-project-files")
+			if !noLocalMetadata {
+				config.EnsureDefaultProjectConfig()
+			}
 			slog.Info("Running in watch mode")
 
 			registry := factory.GetRegistry()
@@ -118,9 +121,11 @@ By default, 'watch' is for activity from all registered agent providers. Specify
 				slog.Error("Failed to get current working directory", "error", err)
 				return err
 			}
-			if _, err := utils.NewProjectIdentityManager(cwd).EnsureProjectIdentity(); err != nil {
-				// Log error but don't fail the command
-				slog.Error("Failed to ensure project identity", "error", err)
+			if !noLocalMetadata {
+				if _, err := utils.NewProjectIdentityManager(cwd).EnsureProjectIdentity(); err != nil {
+					// Log error but don't fail the command
+					slog.Error("Failed to ensure project identity", "error", err)
+				}
 			}
 
 			// Check authentication for cloud sync
@@ -322,6 +327,7 @@ By default, 'watch' is for activity from all registered agent providers. Specify
 	watchCmd.Flags().Bool("debug-raw", false, "debug mode to output pretty-printed raw data files")
 	_ = watchCmd.Flags().MarkHidden("debug-raw") // Hidden flag
 	watchCmd.Flags().Bool("local-time-zone", localTimeZone, "use local timezone for file name and content timestamps (when not present: UTC)")
+	watchCmd.Flags().Bool("no-project-files", false, "skip creating .specstory/ directory in the working directory")
 	watchCmd.Flags().Bool("provenance", false, "enable AI provenance tracking (correlate file changes to agent activity)")
 	_ = watchCmd.Flags().MarkHidden("provenance") // Hidden flag
 	watchCmd.Flags().StringVar(cloudURL, "cloud-url", "", "override the default cloud API base URL")

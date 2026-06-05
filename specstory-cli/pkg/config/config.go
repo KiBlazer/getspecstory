@@ -52,6 +52,11 @@ const defaultConfigTemplate = `# SpecStory CLI Configuration
 # Use local timezone for file name and content timestamps (default: false, UTC)
 # local_time_zone = true # equivalent to --local-time-zone
 
+# Skip creating .specstory/ directory in the working directory (default: false)
+# When true, .project.json and cli/config.toml are not created locally.
+# Incompatible with cloud sync (requires project metadata).
+# no_local_metadata = true # equivalent to --no-project-files
+
 [cloud_sync]
 # Sync session data to SpecStory Cloud. (default: true, when logged in to SpecStory Cloud)
 # enabled = false # equivalent to --no-cloud-sync
@@ -152,6 +157,10 @@ type LocalSyncConfig struct {
 	OutputDir string `toml:"output_dir"`
 	// LocalTimeZone enables local timezone for file name and content timestamps
 	LocalTimeZone *bool `toml:"local_time_zone"`
+	// NoLocalMetadata prevents creating .specstory/ directory in the working directory.
+	// When true, .project.json and cli/config.toml are not created locally.
+	// Cloud sync requires project metadata, so this is incompatible with cloud sync.
+	NoLocalMetadata *bool `toml:"no_local_metadata"`
 }
 
 // LoggingConfig holds logging settings
@@ -208,8 +217,9 @@ type ProvidersConfig struct {
 // These are applied after config files are loaded.
 type CLIOverrides struct {
 	// General
-	OutputDir     string
-	LocalTimeZone bool
+	OutputDir       string
+	LocalTimeZone   bool
+	NoLocalMetadata bool
 
 	// Version check
 	NoVersionCheck bool
@@ -547,6 +557,10 @@ func applyCLIOverrides(cfg *Config, o *CLIOverrides) {
 		enabled := true
 		cfg.LocalSync.LocalTimeZone = &enabled
 	}
+	if o.NoLocalMetadata {
+		enabled := true
+		cfg.LocalSync.NoLocalMetadata = &enabled
+	}
 	if o.DebugDir != "" {
 		cfg.Logging.DebugDir = o.DebugDir
 	}
@@ -725,6 +739,16 @@ func (c *Config) GetDebugDir() string {
 func (c *Config) IsLocalTimeZoneEnabled() bool {
 	if c.LocalSync.LocalTimeZone != nil {
 		return *c.LocalSync.LocalTimeZone
+	}
+	return false
+}
+
+// IsNoLocalMetadataEnabled returns whether to skip creating .specstory/ in the working directory.
+// When true, .project.json and cli/config.toml are not created locally.
+// Defaults to false if not explicitly set.
+func (c *Config) IsNoLocalMetadataEnabled() bool {
+	if c.LocalSync.NoLocalMetadata != nil {
+		return *c.LocalSync.NoLocalMetadata
 	}
 	return false
 }

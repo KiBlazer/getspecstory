@@ -33,11 +33,12 @@ var version = "dev" // Replaced with actual version in the production build proc
 // Flags / Modes / Options
 
 // General Options
-var noAnalytics bool    // flag to disable usage analytics
-var noVersionCheck bool // flag to skip checking for newer versions
-var outputDir string    // custom output directory for markdown files
-var debugDir string     // custom output directory for debug files
-var localTimeZone bool  // flag to use local timezone instead of UTC
+var noAnalytics bool     // flag to disable usage analytics
+var noVersionCheck bool  // flag to skip checking for newer versions
+var outputDir string     // custom output directory for markdown files
+var debugDir string      // custom output directory for debug files
+var localTimeZone bool   // flag to use local timezone instead of UTC
+var noLocalMetadata bool // flag to skip creating .specstory/ in working directory
 // Sync Options
 var noCloudSync bool   // flag to disable cloud sync
 var onlyCloudSync bool // flag to skip local markdown writes and only sync to cloud
@@ -327,7 +328,9 @@ By default, launches %s. Specify a specific agent ID to use a different agent.`,
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config.EnsureDefaultProjectConfig()
+			if !noLocalMetadata {
+				config.EnsureDefaultProjectConfig()
+			}
 			slog.Info("Running in interactive mode")
 
 			// Get custom command if provided via flag
@@ -386,16 +389,18 @@ By default, launches %s. Specify a specific agent ID to use a different agent.`,
 				return err
 			}
 
-			// Initialize project identity
+			// Initialize project identity (needed for cloud sync)
 			cwd, err := os.Getwd()
 			if err != nil {
 				slog.Error("Failed to get current working directory", "error", err)
 				return err
 			}
-			identityManager := utils.NewProjectIdentityManager(cwd)
-			if _, err := identityManager.EnsureProjectIdentity(); err != nil {
-				// Log error but don't fail the command
-				slog.Error("Failed to ensure project identity", "error", err)
+			if !noLocalMetadata {
+				identityManager := utils.NewProjectIdentityManager(cwd)
+				if _, err := identityManager.EnsureProjectIdentity(); err != nil {
+					// Log error but don't fail the command
+					slog.Error("Failed to ensure project identity", "error", err)
+				}
 			}
 
 			// Create context for graceful cancellation (Ctrl+C handling)
@@ -551,7 +556,9 @@ Provide a specific agent ID to sync a specific provider.`
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config.EnsureDefaultProjectConfig()
+			if !noLocalMetadata {
+				config.EnsureDefaultProjectConfig()
+			}
 
 			// Get session IDs if provided via flag
 			sessionIDs, _ := cmd.Flags().GetStringSlice("session")
@@ -604,9 +611,11 @@ func syncSpecificSessions(cmd *cobra.Command, args []string, sessionIDs []string
 			return err
 		}
 
-		identityManager := utils.NewProjectIdentityManager(cwd)
-		if _, err := identityManager.EnsureProjectIdentity(); err != nil {
-			slog.Error("Failed to ensure project identity", "error", err)
+		if !noLocalMetadata {
+			identityManager := utils.NewProjectIdentityManager(cwd)
+			if _, err := identityManager.EnsureProjectIdentity(); err != nil {
+				slog.Error("Failed to ensure project identity", "error", err)
+			}
 		}
 
 		cmdpkg.CheckAndWarnAuthentication(noCloudSync || onlyStats)
@@ -1091,9 +1100,12 @@ func syncAllProviders(registry *factory.Registry, cmd *cobra.Command) error {
 	}
 
 	// Initialize project identity (once for all providers)
-	identityManager := utils.NewProjectIdentityManager(cwd)
-	if _, err := identityManager.EnsureProjectIdentity(); err != nil {
-		slog.Error("Failed to ensure project identity", "error", err)
+	var identityManager *utils.ProjectIdentityManager
+	if !noLocalMetadata {
+		identityManager = utils.NewProjectIdentityManager(cwd)
+		if _, err := identityManager.EnsureProjectIdentity(); err != nil {
+			slog.Error("Failed to ensure project identity", "error", err)
+		}
 	}
 
 	// Check authentication for cloud sync (once)
@@ -1225,9 +1237,12 @@ func syncSingleProvider(registry *factory.Registry, providerID string, cmd *cobr
 	}
 
 	// Initialize project identity
-	identityManager := utils.NewProjectIdentityManager(cwd)
-	if _, err := identityManager.EnsureProjectIdentity(); err != nil {
-		slog.Error("Failed to ensure project identity", "error", err)
+	var identityManager *utils.ProjectIdentityManager
+	if !noLocalMetadata {
+		identityManager = utils.NewProjectIdentityManager(cwd)
+		if _, err := identityManager.EnsureProjectIdentity(); err != nil {
+			slog.Error("Failed to ensure project identity", "error", err)
+		}
 	}
 
 	// Check authentication for cloud sync
@@ -1338,6 +1353,8 @@ func main() {
 			}
 		case "--local-time-zone":
 			localTimeZone = true
+		case "--no-project-files":
+			noLocalMetadata = true
 		}
 		// Handle --output-dir=value format
 		if strings.HasPrefix(arg, "--output-dir=") {
@@ -1363,6 +1380,7 @@ func main() {
 	cfg, cfgErr := config.Load(&config.CLIOverrides{
 		OutputDir:            outputDir,
 		LocalTimeZone:        localTimeZone,
+		NoLocalMetadata:      noLocalMetadata,
 		NoVersionCheck:       noVersionCheck,
 		NoCloudSync:          noCloudSync,
 		OnlyCloudSync:        onlyCloudSync,
@@ -1392,6 +1410,7 @@ func main() {
 		debugDir = utils.ExpandTilde(cfg.GetDebugDir())
 	}
 	localTimeZone = cfg.IsLocalTimeZoneEnabled()
+	noLocalMetadata = cfg.IsNoLocalMetadataEnabled()
 	noVersionCheck = !cfg.IsVersionCheckEnabled()
 	noCloudSync = !cfg.IsCloudSyncEnabled()
 	onlyCloudSync = !cfg.IsLocalSyncEnabled()
@@ -1402,6 +1421,11 @@ func main() {
 	silent = cfg.IsSilentEnabled()
 
 	noTelemetryPrompts = noTelemetryPrompts || cfg.IsTelemetryPromptsDisabled()
+
+	// Warn if no_local_metadata is enabled but cloud sync is not disabled
+	if noLocalMetadata && !noCloudSync {
+		slog.Warn("no_local_metadata is enabled but cloud sync is not disabled; cloud sync requires project metadata and will not work")
+	}
 
 	// Set SPI debug dir override before any commands run
 	if debugDir != "" {
@@ -1476,6 +1500,7 @@ func main() {
 	syncCmd.Flags().Bool("debug-raw", false, "debug mode to output pretty-printed raw data files")
 	_ = syncCmd.Flags().MarkHidden("debug-raw") // Hidden flag
 	syncCmd.Flags().BoolVar(&localTimeZone, "local-time-zone", localTimeZone, "use local timezone for file name and content timestamps (when not present: UTC)")
+	syncCmd.Flags().BoolVar(&noLocalMetadata, "no-project-files", noLocalMetadata, "skip creating .specstory/ directory in the working directory")
 	syncCmd.Flags().StringVar(&telemetryEndpoint, "telemetry-endpoint", "", "Open Telemetry Protocol (OTLP) gRPC collector endpoint (default is off, e.g., localhost:4317)")
 	syncCmd.Flags().StringVar(&telemetryServiceName, "telemetry-service-name", "", "override the default service name for telemetry, if telemetry is enabled")
 	syncCmd.Flags().BoolVar(&noTelemetryPrompts, "no-telemetry-prompts", noTelemetryPrompts, "exclude prompt text from telemetry spans, if telemetry is enabled")
@@ -1493,6 +1518,7 @@ func main() {
 	runCmd.Flags().Bool("debug-raw", false, "debug mode to output pretty-printed raw data files")
 	_ = runCmd.Flags().MarkHidden("debug-raw") // Hidden flag
 	runCmd.Flags().BoolVar(&localTimeZone, "local-time-zone", localTimeZone, "use local timezone for file name and content timestamps (when not present: UTC)")
+	runCmd.Flags().BoolVar(&noLocalMetadata, "no-project-files", noLocalMetadata, "skip creating .specstory/ directory in the working directory")
 	runCmd.Flags().StringVar(&telemetryEndpoint, "telemetry-endpoint", "", "Open Telemetry Protocol (OTLP) gRPC collector endpoint (default is off, e.g., localhost:4317)")
 	runCmd.Flags().StringVar(&telemetryServiceName, "telemetry-service-name", "", "override the default service name for telemetry, if telemetry is enabled")
 	runCmd.Flags().BoolVar(&noTelemetryPrompts, "no-telemetry-prompts", noTelemetryPrompts, "exclude prompt text from telemetry spans, if telemetry is enabled")
