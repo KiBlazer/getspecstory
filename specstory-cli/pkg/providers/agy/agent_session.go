@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"html"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"time"
@@ -206,9 +206,6 @@ func ParseTranscript(conversationID string, workspaceRoot string) (*schema.Sessi
 					targetMsg.Tool.Output = map[string]interface{}{
 						"output": step.Content,
 					}
-					// Generate FormattedMarkdown
-					formatted := fmt.Sprintf("\n\n<pre><code>%s</code></pre>\n", html.EscapeString(step.Content))
-					targetMsg.Tool.FormattedMarkdown = &formatted
 				}
 			}
 		}
@@ -221,6 +218,17 @@ func ParseTranscript(conversationID string, workspaceRoot string) (*schema.Sessi
 	// Append the last exchange
 	if currentExchange != nil && len(currentExchange.Messages) > 0 {
 		exchanges = append(exchanges, *currentExchange)
+	}
+
+	// Populate FormattedMarkdown for all tools using customized markdown tools formatter
+	for i := range exchanges {
+		for j := range exchanges[i].Messages {
+			msg := &exchanges[i].Messages[j]
+			if msg.Tool != nil {
+				formattedMd := formatToolAsMarkdown(msg.Tool)
+				msg.Tool.FormattedMarkdown = &formattedMd
+			}
+		}
 	}
 
 	if firstCreatedAt == "" {
@@ -241,4 +249,165 @@ func ParseTranscript(conversationID string, workspaceRoot string) (*schema.Sessi
 	}
 
 	return sessionData, nil
+}
+
+func formatToolAsMarkdown(tool *schema.ToolInfo) string {
+	if tool == nil {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	// 1. Build custom summary for certain tools (appending key parameters)
+	var customSummary string
+	switch tool.Name {
+	case "view_file":
+		if filePath, ok := tool.Input["AbsolutePath"].(string); ok && filePath != "" {
+			filePath = strings.Trim(filePath, `"'`)
+			customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, filepath.Base(filePath))
+		}
+	case "write_to_file":
+		if filePath, ok := tool.Input["TargetFile"].(string); ok && filePath != "" {
+			filePath = strings.Trim(filePath, `"'`)
+			customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, filepath.Base(filePath))
+		}
+	case "replace_file_content", "multi_replace_file_content":
+		if filePath, ok := tool.Input["TargetFile"].(string); ok && filePath != "" {
+			filePath = strings.Trim(filePath, `"'`)
+			customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, filepath.Base(filePath))
+		}
+	case "list_dir":
+		if dirPath, ok := tool.Input["DirectoryPath"].(string); ok && dirPath != "" {
+			dirPath = strings.Trim(dirPath, `"'`)
+			customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, dirPath)
+		}
+	case "run_command":
+		if cmd, ok := tool.Input["CommandLine"].(string); ok && cmd != "" {
+			cmd = strings.Trim(cmd, `"'`)
+			customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, cmd)
+		}
+	case "grep_search":
+		query := fmt.Sprintf("%v", tool.Input["Query"])
+		query = strings.Trim(query, `"'`)
+		customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, query)
+	case "search_web":
+		query := fmt.Sprintf("%v", tool.Input["query"])
+		query = strings.Trim(query, `"'`)
+		customSummary = fmt.Sprintf("Tool use: **%s** `%s`", tool.Name, query)
+	}
+
+	if customSummary != "" {
+		tool.Summary = &customSummary
+	}
+
+	// 2. Format Input Section
+	if len(tool.Input) > 0 {
+		// Sort keys for deterministic output order
+		keys := make([]string, 0, len(tool.Input))
+		for k := range tool.Input {
+			if !strings.HasPrefix(k, "_") {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+
+		// Filter out inputs that are already clear from the summary to keep it clean
+		hasImportantInputs := false
+		for _, k := range keys {
+			// Skip parameters already highlighted in the summary
+			if tool.Name == "view_file" && k == "AbsolutePath" {
+				continue
+			}
+			if tool.Name == "write_to_file" && k == "TargetFile" {
+				continue
+			}
+			if (tool.Name == "replace_file_content" || tool.Name == "multi_replace_file_content") && k == "TargetFile" {
+				continue
+			}
+			if tool.Name == "list_dir" && k == "DirectoryPath" {
+				continue
+			}
+			if tool.Name == "run_command" && k == "CommandLine" {
+				continue
+			}
+			if tool.Name == "grep_search" && k == "Query" {
+				continue
+			}
+			if tool.Name == "search_web" && k == "query" {
+				continue
+			}
+			hasImportantInputs = true
+		}
+
+		if hasImportantInputs {
+			builder.WriteString("\n**Input:**\n\n")
+			for _, k := range keys {
+				if tool.Name == "view_file" && k == "AbsolutePath" {
+					continue
+				}
+				if tool.Name == "write_to_file" && k == "TargetFile" {
+					continue
+				}
+				if (tool.Name == "replace_file_content" || tool.Name == "multi_replace_file_content") && k == "TargetFile" {
+					continue
+				}
+				if tool.Name == "list_dir" && k == "DirectoryPath" {
+					continue
+				}
+				if tool.Name == "run_command" && k == "CommandLine" {
+					continue
+				}
+				if tool.Name == "grep_search" && k == "Query" {
+					continue
+				}
+				if tool.Name == "search_web" && k == "query" {
+					continue
+				}
+
+				val := tool.Input[k]
+				if valStr, ok := val.(string); ok && strings.Contains(valStr, "\n") {
+					builder.WriteString(fmt.Sprintf("- %s:\n```text\n%s\n```\n", k, valStr))
+				} else {
+					builder.WriteString(fmt.Sprintf("- %s: `%v`\n", k, val))
+				}
+			}
+			builder.WriteString("\n")
+		}
+	}
+
+	// 3. Format Output/Result Section
+	if tool.Output != nil {
+		if content, ok := tool.Output["output"].(string); ok && content != "" {
+			builder.WriteString("\n**Result:**\n\n")
+			lang := "text"
+			if tool.Name == "view_file" || tool.Name == "write_to_file" {
+				var filePath string
+				if fp, ok := tool.Input["AbsolutePath"].(string); ok {
+					filePath = fp
+				} else if fp, ok := tool.Input["TargetFile"].(string); ok {
+					filePath = fp
+				}
+				if filePath != "" {
+					ext := strings.TrimPrefix(filepath.Ext(filePath), ".")
+					if ext != "" {
+						lang = strings.ToLower(ext)
+					}
+				}
+			} else if tool.Name == "run_command" {
+				lang = "bash"
+			} else if tool.Name == "list_dir" || tool.Name == "grep_search" {
+				if strings.HasPrefix(content, "{") || strings.HasPrefix(content, "[") {
+					lang = "json"
+				}
+			}
+
+			if strings.Contains(content, "\n") {
+				builder.WriteString(fmt.Sprintf("```%s\n%s\n```", lang, content))
+			} else {
+				builder.WriteString(fmt.Sprintf("`%s`", content))
+			}
+		}
+	}
+
+	return builder.String()
 }
