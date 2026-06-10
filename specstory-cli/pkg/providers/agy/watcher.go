@@ -41,23 +41,10 @@ func (w *Watcher) Watch(ctx context.Context) error {
 	}
 	defer watcher.Close()
 
-	historyPath, err := getHistoryPath()
+
+	agyDir, err := getAgyDir()
 	if err != nil {
 		return err
-	}
-
-	// Ensure the history file exists
-	if _, err := os.Stat(historyPath); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(historyPath), 0755)
-		f, err := os.Create(historyPath)
-		if err == nil {
-			f.Close()
-		}
-	}
-
-	// Watch history.jsonl
-	if err := watcher.Add(historyPath); err != nil {
-		return fmt.Errorf("failed to watch history file: %w", err)
 	}
 
 	brainDir, err := getBrainDir()
@@ -65,10 +52,24 @@ func (w *Watcher) Watch(ctx context.Context) error {
 		return err
 	}
 
+	// Ensure directories exist
+	os.MkdirAll(agyDir, 0755)
+	os.MkdirAll(brainDir, 0755)
+
+	// Watch the parent agyDir (to detect history.jsonl updates robustly against atomic renames)
+	if err := watcher.Add(agyDir); err != nil {
+		return fmt.Errorf("failed to watch agy directory: %w", err)
+	}
+
+	// Watch the brain directory (to detect new conversation folders dynamically)
+	if err := watcher.Add(brainDir); err != nil {
+		return fmt.Errorf("failed to watch brain directory: %w", err)
+	}
+
 	// Watch existing transcripts of this workspace
 	w.watchExistingTranscripts(watcher, brainDir)
 
-	slog.Info("Watching agy history and brain directory", "historyPath", historyPath, "brainDir", brainDir)
+	slog.Info("Watching agy directory and brain directory", "agyDir", agyDir, "brainDir", brainDir)
 
 	// Debounce map to avoid firing multiple callbacks for same update in quick succession
 	lastFired := make(map[string]time.Time)
@@ -83,9 +84,18 @@ func (w *Watcher) Watch(ctx context.Context) error {
 				return nil
 			}
 
-			// If history.jsonl is written to, a new conversation might have started
-			if event.Name == historyPath && event.Has(fsnotify.Write) {
+			// If history.jsonl is updated (written to, created, or renamed/replaced)
+			if filepath.Base(event.Name) == "history.jsonl" && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
 				w.handleHistoryUpdate(watcher, brainDir)
+			}
+
+			// If a new conversation folder is created under brain/
+			if filepath.Dir(event.Name) == brainDir && event.Has(fsnotify.Create) {
+				convID := filepath.Base(event.Name)
+				if len(convID) == 36 { // Check for UUID structure
+					logDir := filepath.Join(event.Name, ".system_generated", "logs")
+					go w.waitAndAddWatch(watcher, logDir, convID)
+				}
 			}
 
 			// If a transcript.jsonl changes
@@ -114,6 +124,25 @@ func (w *Watcher) Watch(ctx context.Context) error {
 			slog.Error("Watcher error", "error", err)
 		}
 	}
+}
+
+func (w *Watcher) waitAndAddWatch(watcher *fsnotify.Watcher, logDir string, convID string) {
+	// Wait up to 5 seconds for the .system_generated/logs directory to be created by agy
+	for i := 0; i < 50; i++ {
+		if _, err := os.Stat(logDir); err == nil {
+			w.mu.Lock()
+			w.watchedIDs[convID] = true
+			w.mu.Unlock()
+			watcher.Add(logDir)
+			slog.Info("Agy watcher: dynamically added watch for new log directory", "logDir", logDir)
+
+			// Fire initial callback to capture session start
+			go w.fireSessionCallback(convID)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	slog.Warn("Agy watcher: timed out waiting for log directory", "logDir", logDir)
 }
 
 func (w *Watcher) watchExistingTranscripts(watcher *fsnotify.Watcher, brainDir string) {
