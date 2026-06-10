@@ -91,8 +91,8 @@ func (w *Watcher) Watch(ctx context.Context) error {
 			// If a transcript.jsonl changes
 			if strings.HasSuffix(event.Name, "transcript.jsonl") && event.Has(fsnotify.Write) {
 				parts := strings.Split(filepath.ToSlash(event.Name), "/")
-				if len(parts) >= 5 {
-					convID := parts[len(parts)-5]
+				if len(parts) >= 4 {
+					convID := parts[len(parts)-4]
 
 					debounceMu.Lock()
 					lastTime := lastFired[convID]
