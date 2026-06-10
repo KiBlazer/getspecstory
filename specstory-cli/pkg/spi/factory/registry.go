@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/agy"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/claudecode"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/codexcli"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/cursorcli"
@@ -86,6 +87,10 @@ func (r *Registry) registerAll() {
 	opencodeProvider := opencode.NewProvider()
 	r.providers["opencode"] = opencodeProvider
 	slog.Debug("Registered provider", "id", "opencode", "name", opencodeProvider.Name())
+
+	agyProvider := agy.NewProvider()
+	r.providers["agy"] = agyProvider
+	slog.Debug("Registered provider", "id", "agy", "name", agyProvider.Name())
 
 	r.initialized = true
 	slog.Info("Provider registry initialized", "count", len(r.providers), "providers", r.ListIDsUnsafe())
