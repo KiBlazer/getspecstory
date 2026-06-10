@@ -80,14 +80,20 @@ func (p *Provider) Check(customCommand string) spi.CheckResult {
 // DetectAgent determines if there are agy sessions associated with the project path
 func (p *Provider) DetectAgent(projectPath string, helpOutput bool) bool {
 	lines, err := readHistoryLines()
-	if err != nil {
-		return false
+	if err == nil {
+		normProjPath := normalizePath(projectPath)
+		for _, line := range lines {
+			if normalizePath(line.Workspace) == normProjPath {
+				return true
+			}
+		}
 	}
 
-	normProjPath := normalizePath(projectPath)
-	for _, line := range lines {
-		if normalizePath(line.Workspace) == normProjPath {
-			return true
+	if lastConvs, err := readLastConversations(); err == nil {
+		for ws, convID := range lastConvs {
+			if normalizePath(ws) == normalizePath(projectPath) && convID != "" {
+				return true
+			}
 		}
 	}
 
@@ -140,6 +146,17 @@ func (p *Provider) GetAgentChatSessions(projectPath string, debugRaw bool, progr
 		}
 	}
 
+	if lastConvs, err := readLastConversations(); err == nil {
+		for ws, convID := range lastConvs {
+			if normalizePath(ws) == normProjPath && convID != "" {
+				if !seen[convID] {
+					seen[convID] = true
+					sessionIDs = append(sessionIDs, convID)
+				}
+			}
+		}
+	}
+
 	total := len(sessionIDs)
 	var sessions []spi.AgentChatSession
 	for i, id := range sessionIDs {
@@ -183,6 +200,31 @@ func (p *Provider) ListAgentChatSessions(projectPath string) ([]spi.SessionMetad
 					Slug:      line.ConversationID,
 					Name:      line.Display,
 				})
+			}
+		}
+	}
+
+	if lastConvs, err := readLastConversations(); err == nil {
+		for ws, convID := range lastConvs {
+			if normalizePath(ws) == normProjPath && convID != "" {
+				if !seen[convID] {
+					seen[convID] = true
+					brainDir, _ := getBrainDir()
+					createdAt := time.Now().Format(time.RFC3339)
+					name := "Active Session"
+
+					logDir := filepath.Join(brainDir, convID, ".system_generated", "logs")
+					if info, err := os.Stat(logDir); err == nil {
+						createdAt = info.ModTime().Format(time.RFC3339)
+					}
+
+					list = append(list, spi.SessionMetadata{
+						SessionID: convID,
+						CreatedAt: createdAt,
+						Slug:      convID,
+						Name:      name,
+					})
+				}
 			}
 		}
 	}

@@ -52,9 +52,15 @@ func (w *Watcher) Watch(ctx context.Context) error {
 		return err
 	}
 
+	cacheDir, err := getCacheDir()
+	if err != nil {
+		return err
+	}
+
 	// Ensure directories exist
 	os.MkdirAll(agyDir, 0755)
 	os.MkdirAll(brainDir, 0755)
+	os.MkdirAll(cacheDir, 0755)
 
 	// Watch the parent agyDir (to detect history.jsonl updates robustly against atomic renames)
 	if err := watcher.Add(agyDir); err != nil {
@@ -66,10 +72,15 @@ func (w *Watcher) Watch(ctx context.Context) error {
 		return fmt.Errorf("failed to watch brain directory: %w", err)
 	}
 
+	// Watch the cache directory (to detect last_conversations.json updates)
+	if err := watcher.Add(cacheDir); err != nil {
+		return fmt.Errorf("failed to watch cache directory: %w", err)
+	}
+
 	// Watch existing transcripts of this workspace
 	w.watchExistingTranscripts(watcher, brainDir)
 
-	slog.Info("Watching agy directory and brain directory", "agyDir", agyDir, "brainDir", brainDir)
+	slog.Info("Watching agy directory, brain directory, and cache directory", "agyDir", agyDir, "brainDir", brainDir, "cacheDir", cacheDir)
 
 	// Debounce map to avoid firing multiple callbacks for same update in quick succession
 	lastFired := make(map[string]time.Time)
@@ -87,6 +98,11 @@ func (w *Watcher) Watch(ctx context.Context) error {
 			// If history.jsonl is updated (written to, created, or renamed/replaced)
 			if filepath.Base(event.Name) == "history.jsonl" && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
 				w.handleHistoryUpdate(watcher, brainDir)
+			}
+
+			// If last_conversations.json is updated (written to, created, or renamed/replaced)
+			if filepath.Base(event.Name) == "last_conversations.json" && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
+				w.handleLastConversationsUpdate(watcher, brainDir)
 			}
 
 			// If a new conversation folder is created under brain/
@@ -169,6 +185,20 @@ func (w *Watcher) watchExistingTranscripts(watcher *fsnotify.Watcher, brainDir s
 			watcher.Add(logDir)
 		}
 	}
+
+	// Also check last_conversations.json for the active session of this workspace
+	if lastConvs, err := readLastConversations(); err == nil {
+		for ws, convID := range lastConvs {
+			if normalizePath(ws) == w.projectPath && convID != "" {
+				w.watchedIDs[convID] = true
+				logDir := filepath.Join(brainDir, convID, ".system_generated", "logs")
+				transcriptPath := filepath.Join(logDir, "transcript.jsonl")
+				if _, err := os.Stat(transcriptPath); err == nil {
+					watcher.Add(logDir)
+				}
+			}
+		}
+	}
 }
 
 func (w *Watcher) handleHistoryUpdate(watcher *fsnotify.Watcher, brainDir string) {
@@ -195,6 +225,28 @@ func (w *Watcher) handleHistoryUpdate(watcher *fsnotify.Watcher, brainDir string
 			watcher.Add(logDir)
 
 			go w.fireSessionCallback(line.ConversationID)
+		}
+	}
+}
+
+func (w *Watcher) handleLastConversationsUpdate(watcher *fsnotify.Watcher, brainDir string) {
+	lastConvs, err := readLastConversations()
+	if err != nil {
+		return
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	for ws, convID := range lastConvs {
+		if normalizePath(ws) != w.projectPath || convID == "" {
+			continue
+		}
+
+		if !w.watchedIDs[convID] {
+			w.watchedIDs[convID] = true
+			logDir := filepath.Join(brainDir, convID, ".system_generated", "logs")
+			go w.waitAndAddWatch(watcher, logDir, convID)
 		}
 	}
 }

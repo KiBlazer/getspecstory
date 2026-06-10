@@ -43,6 +43,41 @@ func getBrainDir() (string, error) {
 	return filepath.Join(agyDir, "brain"), nil
 }
 
+func getCacheDir() (string, error) {
+	agyDir, err := getAgyDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(agyDir, "cache"), nil
+}
+
+func getLastConversationsPath() (string, error) {
+	cacheDir, err := getCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cacheDir, "last_conversations.json"), nil
+}
+
+func readLastConversations() (map[string]string, error) {
+	path, err := getLastConversationsPath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func readHistoryLines() ([]HistoryLine, error) {
 	historyPath, err := getHistoryPath()
 	if err != nil {
