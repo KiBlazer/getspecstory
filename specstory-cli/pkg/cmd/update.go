@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -89,15 +90,30 @@ specstory update --install-dir /usr/local/bin`,
 				return fmt.Errorf("failed to clone repository: %w", err)
 			}
 
+			// Get version from git history of the cloned repository
+			resolvedVersion := "dev"
+			gitDescCmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
+			gitDescCmd.Dir = tmpDir
+			if out, err := gitDescCmd.Output(); err == nil {
+				resolvedVersion = strings.TrimSpace(string(out))
+			} else {
+				gitRevCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+				gitRevCmd.Dir = tmpDir
+				if out, err := gitRevCmd.Output(); err == nil {
+					resolvedVersion = "dev-" + strings.TrimSpace(string(out))
+				}
+			}
+
 			// Build the binary
-			fmt.Printf("Building binary...\n")
+			fmt.Printf("Building binary with version %s...\n", resolvedVersion)
 			buildDir := filepath.Join(tmpDir, "specstory-cli")
 			binaryName := "specstory"
 			if runtime.GOOS == "windows" {
 				binaryName = "specstory.exe"
 			}
 
-			buildCmd := exec.Command("go", "build", "-o", binaryName)
+			ldflags := fmt.Sprintf("-s -w -X main.version=%s", resolvedVersion)
+			buildCmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", binaryName)
 			buildCmd.Dir = buildDir
 			buildCmd.Stdout = os.Stdout
 			buildCmd.Stderr = os.Stderr
