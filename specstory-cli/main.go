@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -29,6 +30,20 @@ import (
 
 // The current version of the CLI
 var version = "dev" // Replaced with actual version in the production build process
+
+func init() {
+	if version == "dev" {
+		cmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
+		if out, err := cmd.Output(); err == nil {
+			version = strings.TrimSpace(string(out))
+		} else {
+			cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
+			if out, err := cmd.Output(); err == nil {
+				version = "dev-" + strings.TrimSpace(string(out))
+			}
+		}
+	}
+}
 
 // Flags / Modes / Options
 
