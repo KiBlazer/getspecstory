@@ -20,6 +20,27 @@ const (
 	DefaultBranch = "dev"
 )
 
+// installBuiltBinary stages the new binary beside its destination, then atomically
+// renames it into place. On Unix, rename can replace an executable that is still
+// running, unlike writing the destination directly (which returns ETXTBSY).
+// If replacement is unavailable (notably on Windows), the staged .new file is
+// retained for the user to activate after the process exits.
+func installBuiltBinary(srcPath, dstPath string) (pendingPath string, err error) {
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read built binary: %w", err)
+	}
+
+	pendingPath = dstPath + ".new"
+	if err := os.WriteFile(pendingPath, data, 0755); err != nil {
+		return "", fmt.Errorf("failed to stage new binary: %w", err)
+	}
+	if err := os.Rename(pendingPath, dstPath); err != nil {
+		return pendingPath, err
+	}
+	return "", nil
+}
+
 // CreateUpdateCommand creates the update command.
 // The update command pulls the latest code from the specified repository,
 // builds the binary, and installs it to the appropriate location.
@@ -113,30 +134,19 @@ specstory update --install-dir /usr/local/bin`,
 				return fmt.Errorf("failed to create install directory: %w", err)
 			}
 
-			// Try to install the binary directly
+			// Stage and atomically activate the binary. This also works while the
+			// current Unix executable is running.
 			srcPath := filepath.Join(buildDir, binaryName)
 			dstPath := filepath.Join(installDir, binaryName)
-
-			// Read source binary
-			data, err := os.ReadFile(srcPath)
+			pendingPath, err := installBuiltBinary(srcPath, dstPath)
 			if err != nil {
-				return fmt.Errorf("failed to read built binary: %w", err)
-			}
-
-			// Try to write to destination
-			err = os.WriteFile(dstPath, data, 0755)
-			if err != nil {
-				// If the binary is busy (running), save to a temporary location
-				// and provide instructions
-				tmpDst := dstPath + ".new"
-				if err := os.WriteFile(tmpDst, data, 0755); err != nil {
-					return fmt.Errorf("failed to save new binary: %w", err)
+				if pendingPath == "" {
+					return err
 				}
-
-				fmt.Printf("\n⚠️  Could not replace running binary at %s\n", dstPath)
-				fmt.Printf("   New binary saved to: %s\n", tmpDst)
+				fmt.Printf("\n⚠️  Could not activate the new binary at %s: %v\n", dstPath, err)
+				fmt.Printf("   New binary saved to: %s\n", pendingPath)
 				fmt.Printf("\n   To complete the update, run:\n")
-				fmt.Printf("   mv %s %s\n", tmpDst, dstPath)
+				fmt.Printf("   mv %s %s\n", pendingPath, dstPath)
 				return nil
 			}
 
