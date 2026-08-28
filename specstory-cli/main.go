@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -28,20 +28,17 @@ import (
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/utils"
 )
 
-// The current version of this fork. Release builds may override it with ldflags.
-var version = "v1.13.2"
+// forkVersion is the semantic version published by this fork.
+//
+//go:embed VERSION
+var forkVersion string
+
+// Release builds may override this value with ldflags.
+var version = "dev"
 
 func init() {
 	if version == "dev" {
-		cmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
-		if out, err := cmd.Output(); err == nil {
-			version = strings.TrimSpace(string(out))
-		} else {
-			cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
-			if out, err := cmd.Output(); err == nil {
-				version = "dev-" + strings.TrimSpace(string(out))
-			}
-		}
+		version = strings.TrimSpace(forkVersion)
 	}
 }
 

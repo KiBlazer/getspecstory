@@ -3,15 +3,55 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/analytics"
 )
+
+const versionFilePath = "specstory-cli/VERSION"
+
+var updateHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
+func githubVersionURL(repoURL, branch string) (string, error) {
+	repo := strings.TrimSuffix(strings.TrimSpace(repoURL), ".git")
+	repo = strings.TrimPrefix(repo, "https://github.com/")
+	repo = strings.TrimPrefix(repo, "http://github.com/")
+	repo = strings.TrimPrefix(repo, "git@github.com:")
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", fmt.Errorf("version checks require a GitHub repository URL, got %q", repoURL)
+	}
+	return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", parts[0], parts[1], branch, versionFilePath), nil
+}
+
+func fetchRemoteVersion(versionURL string) (string, error) {
+	resp, err := updateHTTPClient.Get(versionURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected HTTP status %s", resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return "", err
+	}
+	remoteVersion := strings.TrimSpace(string(body))
+	if remoteVersion == "" {
+		return "", fmt.Errorf("empty version file")
+	}
+	return remoteVersion, nil
+}
 
 const (
 	// DefaultRepoURL is the default repository to pull updates from
@@ -82,7 +122,21 @@ specstory update --install-dir /usr/local/bin`,
 				installDir = filepath.Join(home, "bin")
 			}
 
-			// Check if go is installed
+			versionURL, err := githubVersionURL(repoURL, branch)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Checking for updates...")
+			remoteVersion, err := fetchRemoteVersion(versionURL)
+			if err != nil {
+				return fmt.Errorf("failed to check remote version: %w", err)
+			}
+			if remoteVersion == version {
+				fmt.Printf("SpecStory is already up to date (%s).\n", version)
+				return nil
+			}
+
+			// Check if go is installed only when an update is needed.
 			if _, err := exec.LookPath("go"); err != nil {
 				return fmt.Errorf("go is not installed or not in PATH: %w", err)
 			}
