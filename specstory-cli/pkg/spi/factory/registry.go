@@ -18,6 +18,7 @@ import (
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/droidcli"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/geminicli"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/opencode"
+	"github.com/specstoryai/getspecstory/specstory-cli/pkg/providers/pi"
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/spi"
 )
 
@@ -87,6 +88,10 @@ func (r *Registry) registerAll() {
 	opencodeProvider := opencode.NewProvider()
 	r.providers["opencode"] = opencodeProvider
 	slog.Debug("Registered provider", "id", "opencode", "name", opencodeProvider.Name())
+
+	piProvider := pi.NewProvider()
+	r.providers["pi"] = piProvider
+	slog.Debug("Registered provider", "id", "pi", "name", piProvider.Name())
 
 	agyProvider := agy.NewProvider()
 	r.providers["agy"] = agyProvider
