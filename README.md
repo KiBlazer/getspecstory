@@ -62,19 +62,40 @@ SpecStory integrates seamlessly with your favorite AI coding tools, automaticall
 
 ### Installation
 
-| Product                                                          | Type | Source                                                                                               | Supported Agent                                                               | Min Version  | Installation                                                  | Changelog                                                                                  |
-|------------------------------------------------------------------|------|------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|--------------|---------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| **[Cursor Extension](https://www.cursor.com/)**                  | IDE  | Closed                                                                                               | [Cursor AI](https://www.cursor.com/)                                          | v0.43.6+     | Search "SpecStory" in Extensions (Cmd/Ctrl+Shift+X) → Install | [📋 View](https://marketplace.visualstudio.com/items/SpecStory.specstory-vscode/changelog) |
-| **[VSC Copilot Extension](https://github.com/features/copilot)** | IDE  | Closed                                                                                               | [GitHub Copilot](https://github.com/features/copilot)                         | v1.300.0+    | Search "SpecStory" in Extensions (Cmd/Ctrl+Shift+X) → Install | [📋 View](https://marketplace.visualstudio.com/items/SpecStory.specstory-vscode/changelog) |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/claudecode)  | [Claude Code](https://claude.ai/claude-code)                                  | v1.0.27+     | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/codexcli)    | [Codex CLI](https://www.openai.com/codex)                                     | v0.42.0+     | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/cursorcli)   | [Cursor CLI](https://cursor.com/cli)                                          | v2025.09.18+ | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/droidcli)    | [Droid CLI](https://factory.ai/product/cli)                                   | v0.56.3+     | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/geminicli)   | [Gemini CLI](https://docs.cloud.google.com/gemini/docs/codeassist/gemini-cli) | 0.15.1+      | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
-| **[SpecStory CLI](https://specstory.com/specstory-cli)**         | CLI  | [Open](https://github.com/specstoryai/getspecstory/tree/dev/specstory-cli/pkg/providers/deepseektui) | [DeepSeek TUI](https://github.com/Hmbown/DeepSeek-TUI)                        | 0.8.39+      | `brew tap specstoryai/tap`<br/>`brew install specstory`       | [📋 View](https://github.com/specstoryai/getspecstory/releases)                            |
+This fork includes the Pi provider and is installed from [KiBlazer/getspecstory](https://github.com/KiBlazer/getspecstory), not from the official Homebrew tap or release installer.
 
-> [!NOTE]
-> For Cursor users: Install from within Cursor, not from the Visual Studio Marketplace website. [Learn why](https://github.com/specstoryai/getspecstory/issues/8)
+Install `git` and Go, then build the `dev` branch:
+
+```bash
+git clone --branch dev https://github.com/KiBlazer/getspecstory.git
+cd getspecstory/specstory-cli
+mkdir -p ~/bin
+go build -trimpath -ldflags="-s -w" -o ~/bin/specstory .
+```
+
+Ensure `~/bin` is on your `PATH` (for Bash):
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Verify the installation and Pi integration:
+
+```bash
+specstory --version
+specstory check pi
+```
+
+### Updating
+
+After the first installation, update from this fork's `dev` branch with:
+
+```bash
+specstory update
+```
+
+The command rebuilds the latest code from `https://github.com/KiBlazer/getspecstory.git` and installs it to `~/bin/specstory`.
 
 ### CLI Tools
 
@@ -91,10 +112,11 @@ specstory run codex     # Launch Codex CLI
 specstory run droid     # Launch Droid CLI
 specstory run gemini    # Launch Gemini CLI
 specstory run deepseek  # Launch DeepSeek TUI
+specstory run pi        # Launch Pi
 specstory run           # Launch default agent
 ```
 
-All sessions automatically save to `.specstory/history/` in your current project.
+Sessions save to the configured output directory (by default, `.specstory/history/` in the current project).
 
 > [!TIP]
 > The SpecStory CLI acts as a wrapper that enhances any of these terminal agents with automatic session saving. You only need the respective agent installed (e.g., Claude Code) for SpecStory to work with it.

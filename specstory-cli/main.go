@@ -28,8 +28,8 @@ import (
 	"github.com/specstoryai/getspecstory/specstory-cli/pkg/utils"
 )
 
-// The current version of the CLI
-var version = "dev" // Replaced with actual version in the production build process
+// The current version of this fork. Release builds may override it with ldflags.
+var version = "v1.13.2"
 
 func init() {
 	if version == "dev" {

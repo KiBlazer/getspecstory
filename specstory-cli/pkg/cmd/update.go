@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -90,30 +89,18 @@ specstory update --install-dir /usr/local/bin`,
 				return fmt.Errorf("failed to clone repository: %w", err)
 			}
 
-			// Get version from git history of the cloned repository
-			resolvedVersion := "dev"
-			gitDescCmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
-			gitDescCmd.Dir = tmpDir
-			if out, err := gitDescCmd.Output(); err == nil {
-				resolvedVersion = strings.TrimSpace(string(out))
-			} else {
-				gitRevCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-				gitRevCmd.Dir = tmpDir
-				if out, err := gitRevCmd.Output(); err == nil {
-					resolvedVersion = "dev-" + strings.TrimSpace(string(out))
-				}
-			}
-
 			// Build the binary
-			fmt.Printf("Building binary with version %s...\n", resolvedVersion)
+			fmt.Println("Building SpecStory CLI...")
 			buildDir := filepath.Join(tmpDir, "specstory-cli")
 			binaryName := "specstory"
 			if runtime.GOOS == "windows" {
 				binaryName = "specstory.exe"
 			}
 
-			ldflags := fmt.Sprintf("-s -w -X main.version=%s", resolvedVersion)
-			buildCmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", binaryName)
+			// Do not inject a Git SHA as the version. The cloned source declares
+			// the fork's semantic version in main.version, and release builds can
+			// still override it with their own ldflags.
+			buildCmd := exec.Command("go", "build", "-ldflags", "-s -w", "-o", binaryName)
 			buildCmd.Dir = buildDir
 			buildCmd.Stdout = os.Stdout
 			buildCmd.Stderr = os.Stderr
