@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	forkVersionURL         = "https://raw.githubusercontent.com/KiBlazer/getspecstory/dev/specstory-cli/VERSION"
+	forkVersionURL         = "https://raw.githubusercontent.com/KiBlazer/getspecstory/release/specstory-cli/VERSION"
 	versionCheckHTTPClient = &http.Client{Timeout: 2500 * time.Millisecond}
 )
 

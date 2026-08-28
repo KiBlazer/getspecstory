@@ -57,7 +57,7 @@ const (
 	// DefaultRepoURL is the default repository to pull updates from
 	DefaultRepoURL = "https://github.com/KiBlazer/getspecstory.git"
 	// DefaultBranch is the default branch to pull from
-	DefaultBranch = "dev"
+	DefaultBranch = "release"
 )
 
 // installBuiltBinary stages the new binary beside its destination, then atomically

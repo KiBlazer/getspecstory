@@ -18,11 +18,11 @@ func (f roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, erro
 }
 
 func TestGitHubVersionURL(t *testing.T) {
-	got, err := githubVersionURL("https://github.com/KiBlazer/getspecstory.git", "dev")
+	got, err := githubVersionURL("https://github.com/KiBlazer/getspecstory.git", "release")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "https://raw.githubusercontent.com/KiBlazer/getspecstory/dev/specstory-cli/VERSION"
+	want := "https://raw.githubusercontent.com/KiBlazer/getspecstory/release/specstory-cli/VERSION"
 	if got != want {
 		t.Fatalf("URL = %q, want %q", got, want)
 	}
@@ -50,7 +50,7 @@ func TestUpdateSkipsDownloadWhenVersionMatches(t *testing.T) {
 	requestCount := 0
 	updateHTTPClient = &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
 		requestCount++
-		if request.URL.String() != "https://raw.githubusercontent.com/KiBlazer/getspecstory/dev/specstory-cli/VERSION" {
+		if request.URL.String() != "https://raw.githubusercontent.com/KiBlazer/getspecstory/release/specstory-cli/VERSION" {
 			t.Fatalf("version URL = %q", request.URL)
 		}
 		response := &http.Response{

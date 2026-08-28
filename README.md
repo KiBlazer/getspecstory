@@ -67,7 +67,7 @@ This fork includes the Pi provider and is installed from [KiBlazer/getspecstory]
 Install `git` and Go, then build the `dev` branch:
 
 ```bash
-git clone --branch dev https://github.com/KiBlazer/getspecstory.git
+git clone --branch release https://github.com/KiBlazer/getspecstory.git
 cd getspecstory/specstory-cli
 mkdir -p ~/bin
 go build -trimpath -ldflags="-s -w" -o ~/bin/specstory .
