@@ -783,7 +783,8 @@ func TestDefaultValues(t *testing.T) {
 		expected bool
 	}{
 		{"IsVersionCheckEnabled default", cfg.IsVersionCheckEnabled(), true},
-		{"IsCloudSyncEnabled default", cfg.IsCloudSyncEnabled(), true},
+		{"IsCloudSyncEnabled default", cfg.IsCloudSyncEnabled(), false},
+		{"IsNoLocalMetadataEnabled default", cfg.IsNoLocalMetadataEnabled(), true},
 		{"IsLocalSyncEnabled default", cfg.IsLocalSyncEnabled(), true},
 		{"IsAnalyticsEnabled default", cfg.IsAnalyticsEnabled(), true},
 		{"IsConsoleEnabled default", cfg.IsConsoleEnabled(), false},
@@ -865,8 +866,8 @@ func TestEnsureDefaultUserConfig(t *testing.T) {
 		if !cfg.IsVersionCheckEnabled() {
 			t.Errorf("IsVersionCheckEnabled() = false, want true")
 		}
-		if !cfg.IsCloudSyncEnabled() {
-			t.Errorf("IsCloudSyncEnabled() = false, want true")
+		if cfg.IsCloudSyncEnabled() {
+			t.Errorf("IsCloudSyncEnabled() = true, want false")
 		}
 		if !cfg.IsLocalSyncEnabled() {
 			t.Errorf("IsLocalSyncEnabled() = false, want true")

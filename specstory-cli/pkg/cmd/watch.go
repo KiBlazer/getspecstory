@@ -39,7 +39,7 @@ func truncateSessionID(id string) string {
 // CreateWatchCommand dynamically creates the watch command with provider information.
 // cloudURL binds to the parent's --cloud-url flag so PersistentPreRunE can apply it.
 // localTimeZone and debugDir are passed from the global config/flag values.
-func CreateWatchCommand(cloudURL *string, localTimeZone bool, debugDir string) *cobra.Command {
+func CreateWatchCommand(cloudURL *string, localTimeZone bool, debugDir, outputDir string, noCloudSync, noLocalMetadata bool) *cobra.Command {
 	registry := factory.GetRegistry()
 	ids := registry.ListIDs()
 	providerList := registry.GetProviderList()
@@ -320,14 +320,14 @@ By default, 'watch' is for activity from all registered agent providers. Specify
 
 	// Watch-specific flags
 	watchCmd.Flags().Bool("json", false, "output session updates as JSON lines (one JSON object per line)")
-	watchCmd.Flags().String("output-dir", "", "custom output directory for markdown files (default: ./.specstory/history)")
+	watchCmd.Flags().String("output-dir", outputDir, "custom output directory for markdown files (default: ~/Documents/specstory/history)")
 	watchCmd.Flags().String("debug-dir", debugDir, "custom output directory for debug data (default: ./.specstory/debug)")
 	watchCmd.Flags().Bool("only-cloud-sync", false, "skip local markdown file saves, only upload to cloud (requires authentication)")
-	watchCmd.Flags().Bool("no-cloud-sync", false, "disable cloud sync functionality")
+	watchCmd.Flags().Bool("no-cloud-sync", noCloudSync, "disable cloud sync functionality")
 	watchCmd.Flags().Bool("debug-raw", false, "debug mode to output pretty-printed raw data files")
 	_ = watchCmd.Flags().MarkHidden("debug-raw") // Hidden flag
 	watchCmd.Flags().Bool("local-time-zone", localTimeZone, "use local timezone for file name and content timestamps (when not present: UTC)")
-	watchCmd.Flags().Bool("no-project-files", false, "skip creating .specstory/ directory in the working directory")
+	watchCmd.Flags().Bool("no-project-files", noLocalMetadata, "skip creating .specstory/ directory in the working directory")
 	watchCmd.Flags().Bool("provenance", false, "enable AI provenance tracking (correlate file changes to agent activity)")
 	_ = watchCmd.Flags().MarkHidden("provenance") // Hidden flag
 	watchCmd.Flags().StringVar(cloudURL, "cloud-url", "", "override the default cloud API base URL")

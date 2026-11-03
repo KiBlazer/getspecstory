@@ -46,20 +46,20 @@ const defaultConfigTemplate = `# SpecStory CLI Configuration
 # enabled = false # equivalent to --only-cloud-sync
 
 # Custom output directory for markdown files.
-# Default: ./.specstory/history (relative to the project directory)
+# Default: ~/Documents/specstory/history
 # output_dir = "~/.specstory/history" # equivalent to --output-dir "~/.specstory/history"
 
 # Use local timezone for file name and content timestamps (default: false, UTC)
 # local_time_zone = true # equivalent to --local-time-zone
 
-# Skip creating .specstory/ directory in the working directory (default: false)
+# Skip creating .specstory/ directory in the working directory (default: true)
 # When true, .project.json and cli/config.toml are not created locally.
 # Incompatible with cloud sync (requires project metadata).
-# no_local_metadata = true # equivalent to --no-project-files
+# no_local_metadata = false # create project metadata
 
 [cloud_sync]
-# Sync session data to SpecStory Cloud. (default: true, when logged in to SpecStory Cloud)
-# enabled = false # equivalent to --no-cloud-sync
+# Sync session data to SpecStory Cloud. (default: false)
+# enabled = true # enable cloud sync (also set no_local_metadata = false)
 
 [logging]
 # Write logs to .specstory/debug/debug.log (default: false)
@@ -637,12 +637,12 @@ func (c *Config) IsVersionCheckEnabled() bool {
 }
 
 // IsCloudSyncEnabled returns whether cloud sync is enabled.
-// Defaults to true if not explicitly set.
+// Defaults to false if not explicitly set.
 func (c *Config) IsCloudSyncEnabled() bool {
 	if c.CloudSync.Enabled != nil {
 		return *c.CloudSync.Enabled
 	}
-	return true // default enabled
+	return false // default disabled
 }
 
 // IsLocalSyncEnabled returns whether local sync is enabled.
@@ -745,12 +745,12 @@ func (c *Config) IsLocalTimeZoneEnabled() bool {
 
 // IsNoLocalMetadataEnabled returns whether to skip creating .specstory/ in the working directory.
 // When true, .project.json and cli/config.toml are not created locally.
-// Defaults to false if not explicitly set.
+// Defaults to true if not explicitly set.
 func (c *Config) IsNoLocalMetadataEnabled() bool {
 	if c.LocalSync.NoLocalMetadata != nil {
 		return *c.LocalSync.NoLocalMetadata
 	}
-	return false
+	return true
 }
 
 // GetProviderCmd returns the custom execution command for a provider, or empty

@@ -108,9 +108,6 @@ func validateFlags() error {
 	if onlyStats && onlyCloudSync {
 		return utils.ValidationError{Message: "cannot use --only-stats and --only-cloud-sync together. These flags are mutually exclusive"}
 	}
-	if onlyStats && noCloudSync {
-		return utils.ValidationError{Message: "--only-stats already skips cloud sync, no need for --no-cloud-sync"}
-	}
 	if onlyStats && printToStdout {
 		return utils.ValidationError{Message: "cannot use --only-stats and --print together. These flags are mutually exclusive"}
 	}
@@ -1417,6 +1414,8 @@ func main() {
 	// This merges TOML config with CLI flags (CLI flags take precedence via config.Load).
 	if cfg.GetOutputDir() != "" {
 		outputDir = utils.ExpandTilde(cfg.GetOutputDir())
+	} else {
+		outputDir = utils.ExpandTilde("~/Documents/specstory/history")
 	}
 	if cfg.GetDebugDir() != "" {
 		debugDir = utils.ExpandTilde(cfg.GetDebugDir())
@@ -1460,7 +1459,7 @@ func main() {
 	// NOW create the commands - after logging is configured
 	rootCmd = createRootCommand()
 	runCmd = createRunCommand()
-	watchCmd := cmdpkg.CreateWatchCommand(&cloudURL, localTimeZone, debugDir)
+	watchCmd := cmdpkg.CreateWatchCommand(&cloudURL, localTimeZone, debugDir, outputDir, noCloudSync, noLocalMetadata)
 	syncCmd = createSyncCommand()
 	listCmd := cmdpkg.CreateListCommand()
 	checkCmd := cmdpkg.CreateCheckCommand()
@@ -1504,7 +1503,7 @@ func main() {
 	// Command-specific flags
 	syncCmd.Flags().StringSliceP("session", "s", []string{}, "optional session IDs to sync (can be specified multiple times, provider-specific format)")
 	syncCmd.Flags().BoolVar(&printToStdout, "print", printToStdout, "output session markdown to stdout instead of saving (requires -s flag)")
-	syncCmd.Flags().StringVar(&outputDir, "output-dir", outputDir, "custom output directory for markdown files (default: ./.specstory/history)")
+	syncCmd.Flags().StringVar(&outputDir, "output-dir", outputDir, "custom output directory for markdown files (default: ~/Documents/specstory/history)")
 	syncCmd.Flags().StringVar(&debugDir, "debug-dir", debugDir, "custom output directory for debug data (default: ./.specstory/debug)")
 	syncCmd.Flags().BoolVar(&noCloudSync, "no-cloud-sync", noCloudSync, "disable cloud sync functionality")
 	syncCmd.Flags().BoolVar(&onlyCloudSync, "only-cloud-sync", onlyCloudSync, "skip local markdown file saves, only upload to cloud (requires authentication)")
@@ -1523,7 +1522,7 @@ func main() {
 	_ = runCmd.Flags().MarkHidden("provenance") // Hidden flag
 	runCmd.Flags().StringP("command", "c", "", "custom agent execution command for the provider")
 	runCmd.Flags().String("resume", "", "resume a specific session by ID")
-	runCmd.Flags().StringVar(&outputDir, "output-dir", outputDir, "custom output directory for markdown files (default: ./.specstory/history)")
+	runCmd.Flags().StringVar(&outputDir, "output-dir", outputDir, "custom output directory for markdown files (default: ~/Documents/specstory/history)")
 	runCmd.Flags().StringVar(&debugDir, "debug-dir", debugDir, "custom output directory for debug data (default: ./.specstory/debug)")
 	runCmd.Flags().BoolVar(&noCloudSync, "no-cloud-sync", noCloudSync, "disable cloud sync functionality")
 	runCmd.Flags().BoolVar(&onlyCloudSync, "only-cloud-sync", onlyCloudSync, "skip local markdown file saves, only upload to cloud (requires authentication)")
