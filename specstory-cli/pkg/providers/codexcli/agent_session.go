@@ -185,9 +185,32 @@ func buildExchangesFromRecords(records []map[string]interface{}, workspaceRoot s
 	var currentModel string
 	pendingTools := make(map[string]*PendingToolCall) // callID -> pending tool call
 
+	// Older rollouts contain event messages; newer app-server rollouts may only
+	// contain response items. Prefer events per role to avoid duplicate messages.
+	hasUserEvent, hasAgentEvent := false, false
+	for _, record := range records {
+		payload, _ := record["payload"].(map[string]interface{})
+		if record["type"] == "event_msg" {
+			hasUserEvent = hasUserEvent || payload["type"] == "user_message"
+			hasAgentEvent = hasAgentEvent || payload["type"] == "agent_message"
+		}
+	}
+
 	for i, record := range records {
 		recordType, _ := record["type"].(string)
 		timestamp, _ := record["timestamp"].(string)
+
+		if recordType == "response_item" {
+			role, message := codexResponseMessage(record)
+			if message != "" && ((role == "user" && !hasUserEvent) || (role == "assistant" && !hasAgentEvent)) {
+				eventType := "user_message"
+				if role == "assistant" {
+					eventType = "agent_message"
+				}
+				record = map[string]interface{}{"type": "event_msg", "payload": map[string]interface{}{"type": eventType, "message": message}}
+				recordType = "event_msg"
+			}
+		}
 
 		switch recordType {
 		case "session_meta":

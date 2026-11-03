@@ -816,34 +816,9 @@ func writeDebugRawFiles(sessionID string, records []map[string]interface{}) erro
 // Returns empty string if no user message is found.
 func findFirstUserMessage(records []map[string]interface{}) string {
 	for _, record := range records {
-		// Get record type
-		recordType, ok := record["type"].(string)
-		if !ok || recordType != "event_msg" {
-			continue
+		if message := codexUserMessage(record); message != "" {
+			return message
 		}
-
-		// Get payload
-		payload, ok := record["payload"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		// Check if this is a user message
-		payloadType, ok := payload["type"].(string)
-		if !ok || payloadType != "user_message" {
-			continue
-		}
-
-		// Extract the message content
-		message, ok := payload["message"].(string)
-		if !ok || message == "" {
-			continue
-		}
-
-		// Found the first user message
-		slog.Debug("findFirstUserMessage: Found first user message",
-			"message", message[:min(len(message), 100)])
-		return message
 	}
 
 	slog.Debug("findFirstUserMessage: No user message found in session")
@@ -924,14 +899,8 @@ func extractCodexSessionMetadata(sessionInfo *codexSessionInfo) (*spi.SessionMet
 					"file", filepath.Base(sessionInfo.SessionPath),
 					"line", lineNum,
 					"error", jsonErr)
-			} else if recordType, ok := record["type"].(string); ok && recordType == "event_msg" {
-				if payload, ok := record["payload"].(map[string]interface{}); ok {
-					if payloadType, ok := payload["type"].(string); ok && payloadType == "user_message" {
-						if message, ok := payload["message"].(string); ok && message != "" {
-							firstUserMessage = message
-						}
-					}
-				}
+			} else {
+				firstUserMessage = codexUserMessage(record)
 			}
 		}
 
